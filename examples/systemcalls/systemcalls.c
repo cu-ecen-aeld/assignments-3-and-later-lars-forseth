@@ -7,16 +7,15 @@
  *   either in invocation of the system() call, or if a non-zero return
  *   value was returned by the command issued in @param cmd.
 */
-bool do_system(const char *cmd)
-{
+bool do_system(const char *cmd) {
+    printf("Running command: %s\n", cmd);
+    int rc = system(cmd);
+    printf("Return code: %d\n", rc);
+    if (rc != 0) {
+        return false;
+    }
 
-/*
- * TODO  add your code here
- *  Call the system() function with the command set in the cmd
- *   and return a boolean true if the system() call completed with success
- *   or false() if it returned a failure
-*/
-
+    printf("\n\n");
     return true;
 }
 
@@ -33,34 +32,60 @@ bool do_system(const char *cmd)
 *   fork, waitpid, or execv() command, or if a non-zero return value was returned
 *   by the command issued in @param arguments with the specified arguments.
 */
-
-bool do_exec(int count, ...)
-{
+bool do_exec(int count, ...) {
+    printf("\n");
     va_list args;
     va_start(args, count);
-    char * command[count+1];
+    char *command[count+1];
     int i;
-    for(i=0; i<count; i++)
-    {
+    for (i=0; i<count; i++) {
         command[i] = va_arg(args, char *);
     }
+    // Last element has to be NULL, as expected by execv()
     command[count] = NULL;
-    // this line is to avoid a compile warning before your implementation is complete
-    // and may be removed
-    command[count] = command[count];
-
-/*
- * TODO:
- *   Execute a system command by calling fork, execv(),
- *   and wait instead of system (see LSP page 161).
- *   Use the command[0] as the full path to the command to execute
- *   (first argument to execv), and use the remaining arguments
- *   as second argument to the execv() command.
- *
-*/
-
     va_end(args);
 
+    pid_t child_pid = fork();
+
+    // Unable to fork child process
+    if (child_pid == -1) {
+        perror("child process");
+        return false;
+
+    // Child - execute command
+    } else if (child_pid == 0) {
+        printf("Child pid: %d\n", getpid());
+        printf("Executing command: ");
+        for (int i=0; i<count; i++) {
+            printf("%s ", command[i]);
+        }
+        printf("\n");
+        int cmd_status = execv(command[0], command);
+        if (cmd_status == -1) {
+            perror("execv");
+            // Use _exit() to avoid issues with shared resources,
+            // as suggested by GitHub Copilot
+            _exit(1);
+        }
+
+    // Parent - wait for child process
+    } else if (child_pid > 0) {
+        printf("Parent pid: %d\n", getpid());
+        int child_status = 1;
+        waitpid(child_pid, &child_status, 0);
+        printf("Child status: %d\n", child_status);
+        if (child_status != 0) {
+            printf("ERROR: Command in child process failed!\n");
+            return false;
+        }
+
+    // Unexpected error
+    } else {
+        printf("Unpexted error!\n");
+        return false;
+    }
+
+    printf("\n\n");
     return true;
 }
 
@@ -69,21 +94,23 @@ bool do_exec(int count, ...)
 *   This file will be closed at completion of the function call.
 * All other parameters, see do_exec above
 */
-bool do_exec_redirect(const char *outputfile, int count, ...)
-{
+bool do_exec_redirect(const char *outputfile, int count, ...) {
+    printf("\n");
+    if (outputfile == NULL) {
+        printf("ERROR: Output file not specified!\n");
+        return false;
+    }
+
     va_list args;
     va_start(args, count);
-    char * command[count+1];
+    char *command[count+1];
     int i;
-    for(i=0; i<count; i++)
-    {
+    for (i=0; i<count; i++) {
         command[i] = va_arg(args, char *);
     }
+    // Last element has to be NULL, as expected by execv()
     command[count] = NULL;
-    // this line is to avoid a compile warning before your implementation is complete
-    // and may be removed
-    command[count] = command[count];
-
+    va_end(args);
 
 /*
  * TODO
@@ -92,8 +119,54 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+    // Taken from https://stackoverflow.com/a/13784315/1446624 as requested in assignment
+    int fd = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
+    if (fd < 0) { perror("open"); abort(); }
 
-    va_end(args);
+    int child_pid = fork();
+    switch (child_pid) {
+        // Unable to fork child process
+        case -1:
+            perror("child process"); abort();
 
+        // Child - execute command
+        case 0:
+            // Redirect standard output (file descriptor 1) to file descriptor fd
+            if (dup2(fd, 1) < 0) { perror("dup2"); abort(); }
+            close(fd);
+            // Reminder:
+            // file descriptors that were open in the original process remain open in the new process
+            // after calling execvp, so closing it here to save resources
+            int cmd_status = execvp(command[0], command);
+            if (cmd_status == -1) {
+                perror("execvp");
+                // Use _exit() to avoid issues with shared resources,
+                // as suggested by GitHub Copilot
+                _exit(1);
+            }
+
+        // Parent - wait for child process
+        default:
+            // Closing redundant file descriptor fd, as stdout is already redirected to outputfile
+            // by child process
+            close(fd);
+            printf("Parent pid: %d\n", getpid());
+            printf("\n");
+            printf("Child pid: %d\n", getpid());
+            printf("Executing command in child process: ");
+            for (int i=0; i<count; i++) {
+                printf("%s ", command[i]);
+            }
+            printf("\n");
+            int child_status = 1;
+            waitpid(child_pid, &child_status, 0);
+            printf("Child status: %d\n", child_status);
+            if (child_status != 0) {
+                printf("ERROR: Command in child process failed!\n");
+                return false;
+            }
+    }
+
+    printf("\n\n");
     return true;
 }

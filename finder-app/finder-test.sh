@@ -52,7 +52,8 @@ fi
 # Assignment #2: Remove any old writer application builds
 echo "Removing the old writer utility and compiling as a native application"
 make clean
-make
+# Assignment #3 - Part 1: Remove make step
+#make
 
 for i in $( seq 1 $NUMFILES)
 do
