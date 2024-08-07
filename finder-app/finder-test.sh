@@ -49,14 +49,22 @@ then
 	fi
 fi
 
+# Assignment #3 - Part 1: Remove make steps
 # Assignment #2: Remove any old writer application builds
-echo "Removing the old writer utility and compiling as a native application"
-make clean
-# Assignment #3 - Part 1: Remove make step
+#echo "Removing the old writer utility and compiling as a native application"
+#make clean
 #make
 
-for i in $( seq 1 $NUMFILES)
-do
+_writer_app="./writer"
+if [ ! -f "${_writer_app}" ]; then
+	echo "ERROR: writer application not found!"
+	exit 1
+elif [ ! -x "${_writer_app}" ]; then
+	echo "ERROR: writer application is not executable!"
+	exit 1
+fi
+
+for i in $( seq 1 $NUMFILES); do
 	###
 	# Assignment #2:
 	# Use writer application instead of writer bash script
@@ -64,14 +72,7 @@ do
 	# Old call:
 	#./writer.sh "$WRITEDIR/${username}$i.txt" "$WRITESTR"
 	###
-	_writer_app="./writer"
-	if [ ! -f "${_writer_app}" ]; then
-		echo "ERROR: writer application not found!"
-		exit 1
-	elif [ ! -x "${_writer_app}" ]; then
-		echo "ERROR: writer application is not executable!"
-		exit 1
-	fi
+
 	# Prefix 0 if i is < 10, for better file name sorting
 	_x="$i"
 	if [ "$i" -lt 10 ]; then
@@ -80,22 +81,23 @@ do
 	${_writer_app} "$WRITEDIR/${username}${_x}.txt" "$WRITESTR"
 done
 
-OUTPUTSTRING=$(./finder.sh "$WRITEDIR" "$WRITESTR")
-
 # Debug
 printf "\n\n### Content of '%s':\n\n" "${WRITEDIR}"
 ls -la "${WRITEDIR}"
 printf "\n\n"
 
+OUTPUTSTRING=$(./finder.sh "$WRITEDIR" "$WRITESTR")
+printf "\n"
+
 # remove temporary directories
 rm -rf /tmp/aeld-data
 
 set +e
-echo ${OUTPUTSTRING} | grep "${MATCHSTR}"
-if [ $? -eq 0 ]; then
+echo "${OUTPUTSTRING}" | grep "${MATCHSTR}"
+if [ "$?" -eq 0 ]; then
 	echo "success"
 	exit 0
 else
-	echo "failed: expected  ${MATCHSTR} in ${OUTPUTSTRING} but instead found"
+	echo "failed: expected '${MATCHSTR}' in '${OUTPUTSTRING}'"
 	exit 1
 fi

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Fail immediately
 set -e
@@ -29,16 +29,16 @@ if [ -z "${searchstr}" ]; then
     exit 1
 fi
 
-# Determine number of files in filesdir
-# (Using array as suggested by GitHub Copilot)
-readarray -t files_in_dir <<< "$(find "$filesdir" -type f || true)"
-no_of_files="${#files_in_dir[@]}"
+no_of_files=$(find "$filesdir" -type f | wc -l || true)
 
-# Determine number of files containing searchstr
-# (Using awk instead of a for loop as suggested by GitHub Copilot)
+# Reminder:
+# - grep in busybox binary doesn't support long name parameters!
+# - /bin/sh doesn't suuport arrays!
+#
+# Using awk to create the sum, as suggested by GitHub Copilot
 no_of_matches=$(
-    grep --count "$searchstr" "${files_in_dir[@]}" |
+    find "${filesdir}" -type f -exec grep -c -H "${searchstr}" {} \; |
     awk -F: '{sum += $2} END {print sum}' || true
 )
 
-printf "The number of files are %s and the number of matching lines are %s\n\n" "${no_of_files}" "${no_of_matches}"
+printf "The number of files are %d and the number of matching lines are %d\n\n" "${no_of_files}" "${no_of_matches}"
