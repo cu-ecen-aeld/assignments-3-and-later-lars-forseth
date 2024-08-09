@@ -6,6 +6,9 @@ crosstool-ng
 aesd-build
 .vscode/
 test.sh.log
+
+# Don't upload the GitHub Action Runner!
 actions-runner/
+
 # Prevent Linux kernel & busybox repositories from getting re-downloaded over and over
 assignments/assignment3/
